@@ -42,7 +42,7 @@ let InitModule: nkruntime.InitModule =
 
   // This happens inside the InitModule function
   initializer.registerRpc("create-match", CreateMatchRpc);
-
+  logger.info('Javascript module loaded');
 }
 
 const OnRegisterMatchmakerMatched: nkruntime.MatchmakerMatchedFunction = function (ctx: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, matches: nkruntime.MatchmakerResult[]) {
