@@ -42,6 +42,7 @@ let InitModule: nkruntime.InitModule =
 
   // This happens inside the InitModule function
   initializer.registerRpc("create-match", CreateMatchRpc);
+  initializer.registerRpc("healthcheck", rpcHealthCheck);
   logger.info('Javascript module loaded');
 }
 
