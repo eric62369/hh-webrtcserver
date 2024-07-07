@@ -8,7 +8,7 @@
     "typeRoots": [
       "./node_modules"
     ],
-    "outFile": "./build/index.js",
+    "outFile": "./data/modules/build/index.js",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,

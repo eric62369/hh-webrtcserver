@@ -1,3 +1,6 @@
+name: nakama1
+data_dir: "./data/"
+
 console:
   max_message_size_bytes: 409600
 logger:
