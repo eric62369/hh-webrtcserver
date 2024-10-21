@@ -12,6 +12,7 @@ interface LobbyMatchState extends nkruntime.MatchState {
     playerCount: number,
     requiredPlayerCount: number,
     isPrivate: boolean,
+    battleEngineVersion: string,
     gameState: GameState,
     emptyTicks: number
   }
@@ -57,6 +58,7 @@ const OnRegisterMatchmakerMatched: nkruntime.MatchmakerMatchedFunction = functio
 const CreateMatchRpc: nkruntime.RpcFunction = function (ctx: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, payload: string) {
   // Assume the match will be public by default
   let isPrivate = false;
+  let battleEngineVersion = "???";
 
   // Get the isPrivate value from the payload if it exists
   if (payload) {
@@ -64,10 +66,13 @@ const CreateMatchRpc: nkruntime.RpcFunction = function (ctx: nkruntime.Context, 
     if (data.isPrivate) {
       isPrivate = data.isPrivate;
     }
+    if (data.battleEngineVersion) {
+      battleEngineVersion = data.battleEngineVersion;
+    }
   }
   
   // Create the match and return the match ID to the player
-  const matchId = nk.matchCreate("LobbyMatch", { isPrivate });
+  const matchId = nk.matchCreate("LobbyMatch", { isPrivate, battleEngineVersion });
   return JSON.stringify({ matchId });
 };
 
@@ -75,11 +80,13 @@ const CreateMatchRpc: nkruntime.RpcFunction = function (ctx: nkruntime.Context, 
 const MatchInit: nkruntime.MatchInitFunction = function (ctx: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, params: {[key: string]: string}) {
   // Determine if the match should be private based on the passed in params
   const isPrivate = params.isPrivate === "true";
+  const battleEngineVersion = params.battleEngineVersion;
 
   // Define the match state
   const state: LobbyMatchState= {
     players: {},
     isPrivate,
+    battleEngineVersion,
     playerCount: 0,
     requiredPlayerCount: 2,
     gameState: GameState.WaitingForPlayers,
@@ -87,7 +94,7 @@ const MatchInit: nkruntime.MatchInitFunction = function (ctx: nkruntime.Context,
   };
 
   // Update the match label to surface important information for players who are searching for a match
-  const label = JSON.stringify({ isPrivate: state.isPrivate.toString(), playerCount: state.playerCount, requiredPlayerCount: state.requiredPlayerCount });
+  const label = JSON.stringify({ isPrivate: state.isPrivate.toString(), battleEngineVersion: state.battleEngineVersion, playerCount: state.playerCount, requiredPlayerCount: state.requiredPlayerCount });
 
   return {
       state,
@@ -102,7 +109,12 @@ const MatchJoinAttempt: nkruntime.MatchJoinAttemptFunction = function (ctx: nkru
   let accept = true;
   if (Object.keys(state.players).length >= state.requiredPlayerCount) {
     accept = false;
+  } else if ("battleEngineVersion" in metadata) {
+    if (state.battleEngineVersion !== metadata["battleEngineVersion"]){
+      accept = false;
+    }
   }
+    
 
   // Reserve the spot in the match
   state.players[presence.userId] = { presence: null, isReady: false };
@@ -126,7 +138,7 @@ const MatchJoin: nkruntime.MatchJoinFunction = function (ctx: nkruntime.Context,
   }
 
   // Update the match label
-  const label = JSON.stringify({ isPrivate: state.isPrivate.toString(), playerCount: state.playerCount, requiredPlayerCount: state.requiredPlayerCount });
+  const label = JSON.stringify({ isPrivate: state.isPrivate.toString(), battleEngineVersion: state.battleEngineVersion, playerCount: state.playerCount, requiredPlayerCount: state.requiredPlayerCount });
   dispatcher.matchLabelUpdate(label);
 
   // For each "ready" player, let the joining players know about their status
