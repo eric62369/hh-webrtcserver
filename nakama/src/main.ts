@@ -3,6 +3,21 @@
 const tickRate = 10;
 const maxEmptyTicks = tickRate * 10;// tickRate * seconds
 
+enum MatchOpCode {
+	WEBRTC_PEER_METHOD = 9001,
+	JOIN_SUCCESS = 9002,
+	JOIN_ERROR = 9003,
+	CHALLENGE = 9004,
+	CHALLENGE_ACCEPT = 9005,
+	SEND_GAME_ID = 9006,
+	SPECTATE_REQUEST = 9007,
+	SPECTATE_SEND_GAME_ID = 9008,
+	SPECTATE_DISCONNECT_REQUEST = 9009,
+	SPECTATE_REQUEST_ACCEPT = 9010,
+	CHALLENGE_DISCONNECT = 9011,
+	STATUS_UPDATE = 9012,
+}
+
 const READY_OP_CODE = 1;
 const GAME_STARTING_OP_CODE = 2;
 
@@ -114,8 +129,7 @@ const MatchJoinAttempt: nkruntime.MatchJoinAttemptFunction = function (ctx: nkru
       accept = false;
     }
   }
-    
-
+  
   // Reserve the spot in the match
   state.players[presence.userId] = { presence: null, isReady: false };
   
@@ -144,12 +158,8 @@ const MatchJoin: nkruntime.MatchJoinFunction = function (ctx: nkruntime.Context,
   // For each "ready" player, let the joining players know about their status
   Object.keys(state.players).forEach(function (key) {
     const player = state.players[key];
-
-    if (player.isReady) {
-      dispatcher.broadcastMessage(READY_OP_CODE, JSON.stringify({ userId: player.presence.userId }), presences);
-    }
+    dispatcher.broadcastMessage(READY_OP_CODE, JSON.stringify({ userId: player.presence.userId }), presences);
   });
-
 
   return {
       state
@@ -172,6 +182,8 @@ const MatchLeave: nkruntime.MatchLeaveFunction = function (ctx: nkruntime.Contex
 const MatchLoop: nkruntime.MatchLoopFunction = function (ctx: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, dispatcher: nkruntime.MatchDispatcher, tick: number, state: nkruntime.MatchState, messages: nkruntime.MatchMessage[]) {
   messages.forEach(function (message) {
     // If the message is a Ready message, update the player's isReady status and broadcast it to other players
+    logger.info(""+message);
+
     if (message.opCode === READY_OP_CODE) {
       state.players[message.sender.userId].isReady = true;
       dispatcher.broadcastMessage(READY_OP_CODE, JSON.stringify({ userId: message.sender.userId }));
@@ -191,22 +203,22 @@ const MatchLoop: nkruntime.MatchLoopFunction = function (ctx: nkruntime.Context,
       }
     }
   });
-  
+
   // If the match is empty, increment the empty ticks
- if (state.playerCount === 0) {
-   state.emptyTicks++;
- } else {
-   state.emptyTicks = 0;
- }
+  if (state.playerCount === 0) {
+    state.emptyTicks++;
+  } else {
+    state.emptyTicks = 0;
+  }
 
- // If the match has been empty for too long, end it
- if (state.emptyTicks >= maxEmptyTicks) {
-   return null;
- }
+  // If the match has been empty for too long, end it
+  if (state.emptyTicks >= maxEmptyTicks) {
+    return null;
+  }
 
- return {
-     state
- };
+  return {
+      state
+  };
 };
 
 const MatchTerminate: nkruntime.MatchTerminateFunction = function (ctx: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, dispatcher: nkruntime.MatchDispatcher, tick: number, state: nkruntime.MatchState, graceSeconds: number) {
