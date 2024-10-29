@@ -18,8 +18,8 @@ enum MatchOpCode {
 	STATUS_UPDATE = 9012,
 }
 
-const READY_OP_CODE = 1;
-const GAME_STARTING_OP_CODE = 2;
+// const READY_OP_CODE = 1;
+// const GAME_STARTING_OP_CODE = 2;
 
 
 interface LobbyMatchState extends nkruntime.MatchState {
@@ -28,16 +28,20 @@ interface LobbyMatchState extends nkruntime.MatchState {
     requiredPlayerCount: number,
     isPrivate: boolean,
     battleEngineVersion: string,
-    gameState: GameState,
+    nextPeerId: number
+    // gameState: GameState,
     emptyTicks: number
   }
   
   interface PlayerState {
     presence: nkruntime.Presence,
-    isReady: boolean
+    session_id: string,
+    username: string,
+    peer_id: number,
+    isReady: boolean,
   }
   
-enum GameState { WaitingForPlayers, WaitingForPlayersReady, InProgress }
+// enum GameState { WaitingForPlayers, WaitingForPlayersReady, InProgress }
 
 
 let InitModule: nkruntime.InitModule =
@@ -103,8 +107,9 @@ const MatchInit: nkruntime.MatchInitFunction = function (ctx: nkruntime.Context,
     isPrivate,
     battleEngineVersion,
     playerCount: 0,
-    requiredPlayerCount: 2,
-    gameState: GameState.WaitingForPlayers,
+    requiredPlayerCount: 250,
+    nextPeerId: 2,
+    // gameState: GameState.WaitingForPlayers,
     emptyTicks: 0
   };
 
@@ -131,7 +136,7 @@ const MatchJoinAttempt: nkruntime.MatchJoinAttemptFunction = function (ctx: nkru
   }
   
   // Reserve the spot in the match
-  state.players[presence.userId] = { presence: null, isReady: false };
+  state.players[presence.sessionId] = { presence: null, isReady: false };
   
   return {
       state,
@@ -142,14 +147,18 @@ const MatchJoinAttempt: nkruntime.MatchJoinAttemptFunction = function (ctx: nkru
 const MatchJoin: nkruntime.MatchJoinFunction = function (ctx: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, dispatcher: nkruntime.MatchDispatcher, tick: number, state: nkruntime.MatchState, presences: nkruntime.Presence[]) {
   // Populate the presence property for each player
   presences.forEach(function (presence) {
-    state.players[presence.userId].presence = presence;
+    state.players[presence.sessionId].presence = presence;
+    state.players[presence.sessionId].peer_id = state.nextPeerId;
+    state.players[presence.sessionId].username = presence.username;
+    state.players[presence.sessionId].session_id = presence.sessionId;
     state.playerCount++;
+    state.nextPeerId++;
   });
   
   // If the match is full then update the state
-  if (state.playerCount === state.requiredPlayerCount) {
-    state.gameState = GameState.WaitingForPlayersReady;
-  }
+  // if (state.playerCount === state.requiredPlayerCount) {
+  //   state.gameState = GameState.WaitingForPlayersReady;
+  // }
 
   // Update the match label
   const label = JSON.stringify({ isPrivate: state.isPrivate.toString(), battleEngineVersion: state.battleEngineVersion, playerCount: state.playerCount, requiredPlayerCount: state.requiredPlayerCount });
@@ -158,7 +167,7 @@ const MatchJoin: nkruntime.MatchJoinFunction = function (ctx: nkruntime.Context,
   // For each "ready" player, let the joining players know about their status
   Object.keys(state.players).forEach(function (key) {
     const player = state.players[key];
-    dispatcher.broadcastMessage(READY_OP_CODE, JSON.stringify({ userId: player.presence.userId }), presences);
+    dispatcher.broadcastMessage(MatchOpCode.JOIN_SUCCESS, JSON.stringify({ client_version: state.battleEngineVersion, players: state.players }));
   });
 
   return {
@@ -169,7 +178,7 @@ const MatchJoin: nkruntime.MatchJoinFunction = function (ctx: nkruntime.Context,
 const MatchLeave: nkruntime.MatchLeaveFunction = function (ctx: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, dispatcher: nkruntime.MatchDispatcher, tick: number, state: nkruntime.MatchState, presences: nkruntime.Presence[]) {
   // Remove the player from match state
   presences.forEach(function (presence) {
-    delete(state.players[presence.userId]);
+    delete(state.players[presence.sessionId]);
     state.playerCount--;
   });
 
@@ -182,26 +191,31 @@ const MatchLeave: nkruntime.MatchLeaveFunction = function (ctx: nkruntime.Contex
 const MatchLoop: nkruntime.MatchLoopFunction = function (ctx: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, dispatcher: nkruntime.MatchDispatcher, tick: number, state: nkruntime.MatchState, messages: nkruntime.MatchMessage[]) {
   messages.forEach(function (message) {
     // If the message is a Ready message, update the player's isReady status and broadcast it to other players
-    logger.info(""+message);
-
-    if (message.opCode === READY_OP_CODE) {
-      state.players[message.sender.userId].isReady = true;
-      dispatcher.broadcastMessage(READY_OP_CODE, JSON.stringify({ userId: message.sender.userId }));
+    // if (message.opCode === READY_OP_CODE) {
+    //   state.players[message.sender.userId].isReady = true;
+    //   dispatcher.broadcastMessage(READY_OP_CODE, JSON.stringify({ userId: message.sender.userId }));
   
-      // Check to see if all players are now ready
-      var allReady = true;
-      Object.keys(state.players).forEach(function (userId) {
-        if (!state.players[userId].isReady) {
-          allReady = false;
-        }
-      });
+    //   // Check to see if all players are now ready
+    //   var allReady = true;
+    //   Object.keys(state.players).forEach(function (userId) {
+    //     if (!state.players[userId].isReady) {
+    //       allReady = false;
+    //     }
+    //   });
   
-      // If all players are ready, transition to InProgress state and broadcast the game starting event
-      if (allReady && Object.keys(state.players).length === state.requiredPlayerCount) {
-        state.gameState = GameState.InProgress;
-        dispatcher.broadcastMessage(GAME_STARTING_OP_CODE);
-      }
-    }
+    //   // If all players are ready, transition to InProgress state and broadcast the game starting event
+    //   if (allReady && Object.keys(state.players).length === state.requiredPlayerCount) {
+    //     state.gameState = GameState.InProgress;
+    //     dispatcher.broadcastMessage(GAME_STARTING_OP_CODE);
+    //   }
+    // }
+    logger.info("------------------------------------------")
+    
+    logger.info(nk.binaryToString(message.data))
+    
+    let message_deserial = JSON.parse(nk.binaryToString(message.data))
+    logger.info(message_deserial.toString())
+    dispatcher.broadcastMessage(message.opCode, JSON.stringify(message_deserial));
   });
 
   // If the match is empty, increment the empty ticks
