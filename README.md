@@ -5,7 +5,7 @@ Useful commands
         - Take your built docker image, and spin up as many container instances as you want
     - docker build .
         - image needs updating based on the Dockerfile
-    - docker build . && docker compose up
+    - npx tsc && docker build . && docker compose up
     - docker exec -t -i nakama-nakama-1 /bin/bash
         - bash window for docker
     - docker ps -a
@@ -25,13 +25,8 @@ Nakama Console:
     - Your custom RPC endpoints should be at the top of the dropdown list
 
 What's next?
-- start on custom match handler for lobbies
-
-- Something's wrong with the g-diffuser:
-    - js_entrypoint in the .yml configs for nakama setup stuff is quite important. Can't find InitModule without knowing where the main JS file is
-    - That being said, our docker-compose.yml + Dockerfile setup from snopek is different than the recommended nakama docs
-    - We'll have to understand more about how the docker setup currently works. Setting volumes in nakama based on local data/ folder could be messing things up?
-
+- Connect server authoritative lobbies with client code
+- Make any changes necessary
 
 prod server
 - http(s)://IP/7351 - nakama console
