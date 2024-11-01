@@ -209,12 +209,12 @@ const MatchLoop: nkruntime.MatchLoopFunction = function (ctx: nkruntime.Context,
     //     dispatcher.broadcastMessage(GAME_STARTING_OP_CODE);
     //   }
     // }
-    logger.info("------------------------------------------")
+    // logger.info("------------------------------------------")
     
-    logger.info(nk.binaryToString(message.data))
+    // logger.info(nk.binaryToString(message.data))
     
     let message_deserial = JSON.parse(nk.binaryToString(message.data))
-    logger.info(message_deserial.toString())
+    // logger.info(message_deserial.toString())
     dispatcher.broadcastMessage(message.opCode, JSON.stringify(message_deserial));
   });
 
